@@ -1,6 +1,8 @@
 import { BcryptAdapter } from "../../config";
 import { UserModel } from "../../data/mongodb";
 import { AuthDataSource, CustomError, RegisterUserDto, UserEntity } from "../../domain";
+import { LoginUserDto } from "../../domain/dtos/auth/login-user.dto";
+import { UserMapper } from "../mappers/user.mapper";
 
 
 
@@ -10,6 +12,27 @@ export class AuthDatasourceImpl implements AuthDataSource {
         
     ){
 
+    }
+    async login(loginUserDto: LoginUserDto): Promise<UserEntity> {
+
+        const  { email, password } = loginUserDto;
+
+        try {
+            const user = await UserModel.findOne({ email });
+            if( !user ) throw CustomError.badRequest('User dont exists');
+
+            const validatePassword = BcryptAdapter.compare(password, user.password);
+            if( !validatePassword ) throw CustomError.badRequest('Login denied');
+
+
+            return UserMapper.userEntityFromObject(user);
+        } catch (error) {
+            if( error instanceof CustomError ) {
+                throw error;
+            }
+
+            throw CustomError.internalServer();
+        }
     }
     
     async register(registerUserDto: RegisterUserDto): Promise<UserEntity> {
@@ -35,13 +58,7 @@ export class AuthDatasourceImpl implements AuthDataSource {
             
             //3. Mapear la respuesta
 
-            return new UserEntity(
-                user.id,
-                name,
-                email,
-                user.password,
-                user.roles,
-            )
+            return UserMapper.userEntityFromObject(user);
         } catch (error) {
             
 
